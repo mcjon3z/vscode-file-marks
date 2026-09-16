@@ -48,6 +48,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: file-marks-explorer-vsix
-          path: file-marks-explorer.vsix
+          name: mcjon3z-file-marks-vsix
+          path: mcjon3z-file-marks.vsix
           if-no-files-found: error

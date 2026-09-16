@@ -4,6 +4,8 @@ images/**
 .github/**
 node_modules/**
 test/**
+PLAN*.md
+.vscodeignore.local
 .gitignore
 .vscodeignore
 PUBLISHING.md

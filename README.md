@@ -1,4 +1,8 @@
-# File Marks Explorer
+# File Marks Explorer (Workspace Storage)
+
+> **Internal build.** This is [T0ks1k24/vscode-file-marks](https://github.com/T0ks1k24/vscode-file-marks) with [workspace-backed mark storage](https://github.com/T0ks1k24/vscode-file-marks/pull/1) added, packaged under its own extension id so it installs alongside the Marketplace version instead of being auto-updated over it. Disable **File Marks Explorer** while this one is installed, or both will decorate the same files. On first run in global mode it copies the marks from the Marketplace build, leaving those untouched.
+>
+> Once the upstream pull request is merged, install the Marketplace version again and drop this one; the feature is identical.
 
 Colour your files and folders in the VS Code Explorer. Right-click → **Mark** — pick a colour, a
 tag and a note. Marks are stored globally, so they follow you into every project.

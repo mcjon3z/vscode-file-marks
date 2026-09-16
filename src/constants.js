@@ -57,8 +57,14 @@ const STORAGE_FILE = 'marks.json';
 const WORKSPACE_STORAGE_DIR = '.vscode';
 const WORKSPACE_STORAGE_FILE = 'file-marks.json';
 
-/** Global storage folder used before the extension got a real publisher id. */
-const LEGACY_STORAGE_DIRS = ['local.file-marks'];
+/**
+ * Global storage folders to adopt marks from when we have none of our own.
+ * The folder is named `<publisher>.<name>`, so a different extension identity
+ * means a different folder — this build has its own, and picks up the marks of
+ * the Marketplace one rather than starting empty. Nothing is moved: the other
+ * folder is left exactly as it was.
+ */
+const LEGACY_STORAGE_DIRS = ['t0ks1k24.file-marks-explorer', 'local.file-marks'];
 
 module.exports = {
   COLORS,
