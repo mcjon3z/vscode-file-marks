@@ -114,14 +114,21 @@ async function activate(context) {
     })
   );
 
-  // Renames and moves made inside VS Code carry their marks along, folders included.
+  // Renames, moves and deletes made inside VS Code take their marks with them,
+  // folders included — and a create puts them back when the delete is undone.
   context.subscriptions.push(
     vscode.workspace.onDidRenameFiles(async (event) => {
       let touched = false;
       for (const { oldUri, newUri } of event.files) {
         touched = store.renameInMemory(oldUri, newUri) || touched;
       }
-      await store.commitRenames(touched);
+      await store.commit(touched);
+    }),
+    vscode.workspace.onDidDeleteFiles(async (event) => {
+      await store.commit(store.deleteInMemory(event.files));
+    }),
+    vscode.workspace.onDidCreateFiles(async (event) => {
+      await store.commit(store.restoreDeleted(event.files));
     })
   );
 

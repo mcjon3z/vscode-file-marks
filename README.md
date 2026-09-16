@@ -194,8 +194,7 @@ Explorer. The shortcuts read it through the built-in *Copy Path* command and put
 immediately afterwards — set `fileMarks.explorerKeybindings` to `false` and they only ever mark the
 file open in the editor, leaving the clipboard alone. The context menu never needs any of this.
 
-**Renames** made inside VS Code carry the mark along, folders included. Changes made outside the
-editor do not — use **File Marks: Remove Marks of Missing Files** to clean up.
+**Renames and deletions** made inside VS Code take the mark with them, folders included: a renamed file keeps its colour, and a deleted one gives it up, so a new file created later at that path does not inherit a colour and a note from whatever used to be there. Undoing a delete brings the marks back. Changes made outside the editor are not seen — use **File Marks: Remove Marks of Missing Files** to clean up after those.
 
 **Backup.** *Export / Import Marks* moves everything to another machine, and **File Marks: Open the Marks Storage File** opens whichever file is in use. By default that is one JSON file in the extension's global storage and nothing is written into your projects; see [Where marks are stored](#where-marks-are-stored) for the mode that puts it in the workspace instead.
 

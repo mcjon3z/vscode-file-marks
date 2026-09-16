@@ -23,6 +23,15 @@ const decoder = new TextDecoder();
  */
 const SAVE_DELAY = 800;
 
+/**
+ * How long the marks of a deleted item are kept aside so that undoing the
+ * delete can put them back. The Explorer's undo arrives as an ordinary create
+ * with nothing to say it was an undo, so the age of the delete is the only
+ * thing telling the two apart — and past this, a file appearing where a marked
+ * one used to be is a new file that should not inherit the old colour.
+ */
+const UNDO_WINDOW = 30000;
+
 /** @param {string} text */
 function countNewlines(text) {
   let count = 0;
@@ -143,6 +152,12 @@ class MarkStore {
     this._writes = Promise.resolve();
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     this._saveTimer = undefined;
+
+    /**
+     * Marks of recently deleted items, kept for `UNDO_WINDOW`.
+     * @type {Map<string, { mark: Mark, at: number }>}
+     */
+    this._deleted = new Map();
   }
 
   dispose() {
@@ -558,36 +573,113 @@ class MarkStore {
     this._emitter.fire(undefined);
   }
 
+  /** Everything stored beneath an item, since only the folder itself is named. */
+  _childPrefix(uri, key) {
+    return key + this._codec.childSeparator(uri);
+  }
+
+  /**
+   * Moves the mark of an item, and of everything inside it, to another key — or
+   * takes them away when there is nowhere to move them to.
+   *
+   * @param {vscode.Uri} uri
+   * @param {string | undefined} to `undefined` removes them
+   * @param {Map<string, Mark>} [removed] collects what was taken away
+   */
+  _moveSubtree(uri, to, removed) {
+    const from = this.key(uri);
+    if (from === undefined || from === to) return false;
+
+    const prefix = this._childPrefix(uri, from);
+    let touched = false;
+
+    for (const [key, mark] of [...this.marks]) {
+      const rest = key === from ? '' : key.startsWith(prefix) ? key.slice(from.length) : undefined;
+      if (rest === undefined) continue;
+
+      this.marks.delete(key);
+      if (to !== undefined) this.marks.set(to + rest, mark);
+      else if (removed) removed.set(key, mark);
+      touched = true;
+    }
+    return touched;
+  }
+
   /**
    * Follows a rename or move, including every mark inside a renamed folder.
    * @param {vscode.Uri} oldUri
    * @param {vscode.Uri} newUri
    */
   renameInMemory(oldUri, newUri) {
-    const from = this.key(oldUri);
-    if (from === undefined) return false;
+    // An undefined destination means the item left this storage altogether —
+    // moved out of the workspace in workspace mode. Its marks go with it:
+    // leaving them behind would paint whatever turns up at the old path next.
+    return this._moveSubtree(oldUri, this.key(newUri));
+  }
 
-    // Undefined means the item left this storage altogether — moved out of the
-    // workspace in workspace mode. Its marks go with it: leaving them behind
-    // would paint whatever turns up at the old path next.
-    const to = this.key(newUri);
-    if (from === to) return false;
+  /**
+   * Follows a delete: the marks of the item and of everything inside it go with
+   * it, so a file later created at the same path starts clean instead of
+   * inheriting a colour and a note from whatever used to be there.
+   *
+   * Only deletes made through VS Code are seen. One made outside the editor
+   * still leaves its mark behind — **Remove Marks of Missing Files** is what
+   * clears those.
+   *
+   * @param {readonly vscode.Uri[]} uris
+   */
+  deleteInMemory(uris) {
+    const now = Date.now();
+    for (const [key, entry] of this._deleted) {
+      if (now - entry.at > UNDO_WINDOW) this._deleted.delete(key);
+    }
 
-    const prefix = from + this._codec.childSeparator(oldUri);
     let touched = false;
+    for (const uri of uris) {
+      /** @type {Map<string, Mark>} */
+      const removed = new Map();
+      if (!this._moveSubtree(uri, undefined, removed)) continue;
 
-    for (const [key, mark] of [...this.marks]) {
-      const moved = key === from ? '' : key.startsWith(prefix) ? key.slice(from.length) : undefined;
-      if (moved === undefined) continue;
-
-      this.marks.delete(key);
-      if (to !== undefined) this.marks.set(to + moved, mark);
+      for (const [key, mark] of removed) this._deleted.set(key, { mark, at: now });
       touched = true;
     }
     return touched;
   }
 
-  async commitRenames(touched) {
+  /**
+   * Puts the marks back when a delete is undone. The Explorer's undo is an
+   * ordinary create as far as we are told, so a create is only treated as one
+   * while the delete it would undo is still recent.
+   *
+   * @param {readonly vscode.Uri[]} uris
+   */
+  restoreDeleted(uris) {
+    if (this._deleted.size === 0) return false;
+
+    const now = Date.now();
+    let touched = false;
+
+    for (const uri of uris) {
+      const key = this.key(uri);
+      if (key === undefined) continue;
+      const prefix = this._childPrefix(uri, key);
+
+      // A restored folder is announced as one create, so its contents come back
+      // with it.
+      for (const [at, entry] of [...this._deleted]) {
+        if (at !== key && !at.startsWith(prefix)) continue;
+
+        this._deleted.delete(at);
+        if (now - entry.at > UNDO_WINDOW) continue;
+        this.marks.set(at, entry.mark);
+        touched = true;
+      }
+    }
+    return touched;
+  }
+
+  /** Saves and redraws after a rename, a delete or an undone delete. */
+  async commit(touched) {
     if (!touched) return;
     await this.save();
     this._emitter.fire(undefined);

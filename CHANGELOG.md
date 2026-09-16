@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`fileMarks.storage`.** Left at `global` nothing changes: marks stay in your VS Code profile, keyed by absolute path, and no project is written into. Set to `workspace` and they go to `.vscode/file-marks.json` inside the workspace instead, keyed relative to it, so everyone who opens that folder — shared through git, a network drive or a sync client such as OneDrive — sees the same marks, wherever they keep it. Colours, tags, notes and marked lines all follow the setting, and a change made by someone else shows up as soon as the file reaches you.
 - Workspace storage refuses anything it cannot name portably: a file outside the workspace, or an untitled editor, is reported rather than stored as an absolute path in a file other people read. A key in the storage file that points outside the workspace is dropped when it is loaded.
 
+### Fixed
+- Deleting a marked file or folder in VS Code now takes its mark with it. The mark used to stay behind, so a file created later at the same path inherited a colour, a tag and a note from whatever used to be there — folders that come round again under the same name, like a per-year or per-client directory, picked up the previous one's state. Marks inside a deleted folder go too, and undoing the delete puts them all back.
+
+Deletions made outside the editor are still not seen; **Remove Marks of Missing Files** remains the way to clear those.
+
 ### Changed
 - A storage file changed outside the editor now refreshes the marked lines as well as the Explorer, instead of only the Explorer.
 
